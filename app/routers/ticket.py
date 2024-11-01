@@ -1,15 +1,17 @@
 from fastapi import APIRouter, HTTPException, Body
-from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from bson import ObjectId
-from models.ticket import TicketSchema, UpdateTicketSchema, PatchTicketSchema
+from models.ticket import (
+    TicketSchema,
+    UpdateTicketSchema,
+    PatchTicketSchema,
+    ChangeSchema,
+)  # Ensure ChangeSchema is imported
 from config.database import ticket_collection
-import asyncio
 
 router = APIRouter()
-app = FastAPI()
 
 
 def ticket_helper(ticket) -> dict:
@@ -22,15 +24,15 @@ def ticket_helper(ticket) -> dict:
         "duedate": ticket.get("duedate"),
         "point": ticket["point"],
         "is_deleted": ticket["is_deleted"],
-        "change": ticket.get("change", []),  # Include change if exists
+        "change": ticket.get("change", []),
     }
 
 
 # Create Ticket - POST /ticket
 @router.post("/ticket", tags=["Ticket"], response_description="Create a new ticket")
 async def create_ticket(ticket: TicketSchema = Body(...)):
-    ticket = jsonable_encoder(ticket)
-    new_ticket = await ticket_collection.insert_one(ticket)
+    ticket_data = jsonable_encoder(ticket)
+    new_ticket = await ticket_collection.insert_one(ticket_data)
     created_ticket = await ticket_collection.find_one({"_id": new_ticket.inserted_id})
     return ticket_helper(created_ticket)
 
@@ -40,7 +42,7 @@ async def create_ticket(ticket: TicketSchema = Body(...)):
 async def update_ticket(id: str, ticket: UpdateTicketSchema = Body(...)):
     try:
         obj_id = ObjectId(id)
-    except:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid ID format")
 
     existing_ticket = await ticket_collection.find_one({"_id": obj_id})
@@ -48,26 +50,19 @@ async def update_ticket(id: str, ticket: UpdateTicketSchema = Body(...)):
         raise HTTPException(status_code=404, detail=f"Ticket with ID {id} not found")
 
     update_data = {k: v for k, v in ticket.dict().items() if v is not None}
-    change_list = existing_ticket.get("change", [])
 
-    change_object = {
-        "change_from": {},
-        "change_key": [],
-        "change_to": {},
-        "blame": "user@example.com",  # Replace with actual user information
-        "action_date": datetime.utcnow().isoformat(),
-    }
-
-    for field in ["issue_type", "status", "assignee", "duedate", "point"]:
-        old_value = existing_ticket.get(field, None)
-        new_value = update_data.get(field)
-        if old_value != new_value and new_value is not None:
-            change_object["change_from"][field] = old_value
-            change_object["change_key"].append(field)
-            change_object["change_to"][field] = new_value
-
-    if change_object["change_key"]:
-        change_list.append(change_object)
+    if "status" in update_data and update_data["status"] != existing_ticket["status"]:
+        change_entry = ChangeSchema(
+            change_from=existing_ticket["status"],
+            change_from_key="status",
+            change_to=update_data["status"],
+            change_to_key="status",
+            filed="status",
+            blame="system",  # Adjust this if needed
+            at=int(datetime.utcnow().timestamp()),
+        )
+        change_list = existing_ticket.get("change", [])
+        change_list.append(change_entry.dict())
         update_data["change"] = change_list
 
     update_result = await ticket_collection.update_one(
@@ -86,7 +81,7 @@ async def update_ticket(id: str, ticket: UpdateTicketSchema = Body(...)):
 async def soft_delete_ticket(id: str):
     try:
         obj_id = ObjectId(id)
-    except:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid ID format")
 
     update_result = await ticket_collection.update_one(
@@ -126,7 +121,7 @@ async def list_tickets(page: int = 1):
 async def get_ticket(id: str):
     try:
         obj_id = ObjectId(id)
-    except:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid ID format")
 
     ticket = await ticket_collection.find_one({"_id": obj_id})
@@ -137,12 +132,11 @@ async def get_ticket(id: str):
     raise HTTPException(status_code=404, detail=f"Ticket with ID {id} not found")
 
 
-# Patch Ticket - PATCH /ticket/{id}
 @router.patch("/ticket/{id}", tags=["Ticket"], response_description="Patch a ticket")
 async def patch_ticket(id: str, ticket: PatchTicketSchema = Body(...)):
     try:
         obj_id = ObjectId(id)
-    except:
+    except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid ID format")
 
     existing_ticket = await ticket_collection.find_one({"_id": obj_id})
@@ -151,27 +145,20 @@ async def patch_ticket(id: str, ticket: PatchTicketSchema = Body(...)):
         raise HTTPException(status_code=404, detail=f"Ticket with ID {id} not found")
 
     update_data = {k: v for k, v in ticket.dict().items() if v is not None}
-    change_list = existing_ticket.get("change", [])
 
-    change_object = {
-        "change_from": {},
-        "change_key": [],
-        "change_to": {},
-        "blame": "user@example.com",
-        "action_date": datetime.utcnow().isoformat(),
-    }
-
-    for field in ["issue_type", "status", "assignee", "duedate", "point"]:
-        old_value = existing_ticket.get(field, None)
-        new_value = update_data.get(field)
-
-        if old_value != new_value and new_value is not None:
-            change_object["change_from"][field] = old_value
-            change_object["change_key"].append(field)
-            change_object["change_to"][field] = new_value
-
-    if change_object["change_key"]:
-        change_list.append(change_object)
+    # Handle the change logging if status is updated
+    if "status" in update_data and update_data["status"] != existing_ticket["status"]:
+        change_entry = ChangeSchema(
+            change_from=existing_ticket["status"],
+            change_from_key="status",
+            change_to=update_data["status"],
+            change_to_key="status",
+            filed="status",
+            blame="system",
+            at=int(datetime.utcnow().timestamp()),
+        )
+        change_list = existing_ticket.get("change", [])
+        change_list.append(change_entry.dict())
         update_data["change"] = change_list
 
     update_result = await ticket_collection.update_one(

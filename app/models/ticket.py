@@ -4,41 +4,44 @@ from pydantic import BaseModel, Field
 
 class ChangeSchema(BaseModel):
     change_from: str
-    change_key: str
+    change_from_key: str
     change_to: str
+    change_to_key: str
+    filed: str
     blame: str
-    action_date: str  # ISO-UTC formatted stri
+    at: int
 
 
-# không định nghĩa webhook bằng các đường dẫn cụ thể trên URL mà chỉ đơn giản là đăng ký sự kiên trên webhook
 class TicketSchema(BaseModel):
     ticket_id: str
-    issue_type: str = Field(..., pattern="^(ABC|XYZ|GHIK)$")
-    status: str = Field(..., pattern="^(Resolved|Late|Waiting for approve)$")
+    issue_type: str
+    status: str
     assignee: str
-    created_date: str  # ISO-UTC format
-    duedate: Optional[str]  # ISO-UTC format
+    created_date: str
+    duedate: Optional[str]
     point: int
     is_deleted: bool
 
 
 class UpdateTicketSchema(BaseModel):
-    issue_type: Optional[str]
-    status: Optional[str]
-    assignee: Optional[str]
-    created_date: Optional[str]
-    duedate: Optional[str]
-    point: Optional[int]
-    is_deleted: Optional[bool]
-    change: Optional[List[ChangeSchema]]
+    ticket_id: Optional[str] = Field(None, description="Ticket ID")
+    issue_type: Optional[str] = Field(None, description="Type of issue")
+    status: Optional[str] = Field(None, description="Status of the ticket")
+    assignee: Optional[str] = Field(None, description="Assignee of the ticket")
+    created_date: Optional[str] = Field(None, description="Creation date of the ticket")
+    duedate: Optional[str] = Field(None, description="Due date of the ticket")
+    point: Optional[int] = Field(None, description="Point value of the ticket")
+    is_deleted: Optional[bool] = Field(None, description="Soft delete flag")
+    change: Optional[List[ChangeSchema]] = Field(None, description="Change history")
 
 
-# Patch schema similar to update, but for partial updates
 class PatchTicketSchema(BaseModel):
-    issue_type: Optional[str]
-    status: Optional[str]
-    assignee: Optional[str]
-    duedate: Optional[str]
-    point: Optional[int]
-    is_deleted: Optional[bool]
-    change: Optional[List[ChangeSchema]]
+    ticket_id: Optional[str] = Field(None, description="Ticket ID")
+    issue_type: Optional[str] = Field(None, description="Type of issue")
+    status: Optional[str] = Field(None, description="Status of the ticket")
+    assignee: Optional[str] = Field(None, description="Assignee of the ticket")
+    created_date: Optional[str] = Field(None, description="Creation date of the ticket")
+    duedate: Optional[str] = Field(None, description="Due date of the ticket")
+    point: Optional[int] = Field(None, description="Point value of the ticket")
+    is_deleted: Optional[bool] = Field(None, description="Soft delete flag")
+    change: Optional[List[ChangeSchema]] = Field(None, description="Change history")
