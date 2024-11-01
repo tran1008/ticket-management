@@ -3,8 +3,9 @@ from routers import ticket
 import httpx
 from models.ticket import TicketSchema, UpdateTicketSchema, PatchTicketSchema
 
-app = FastAPI()
+import uvicorn
 
+app = FastAPI()
 # Include routers
 app.include_router(ticket.router)
 
@@ -13,6 +14,9 @@ app.include_router(ticket.router)
 async def hello_python():
     return {"message": "Welcome to the Ticket Management API"}
 
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
 
 # truyền vào một dependencies rỗng đồng nghĩa với việc nó chỉ chạy một lần sau khi component được render lần đầu tiên
 # khi tạo một ứng dụng fastapi có một thuộc tính webhook rằng bạn có thể sử dụng để định nghĩa webhooks
