@@ -14,6 +14,7 @@ class ChangeSchema(BaseModel):
 
 class TicketSchema(BaseModel):
     ticket_id: str
+    title: str
     issue_type: str
     status: str
     assignee: str
@@ -25,6 +26,7 @@ class TicketSchema(BaseModel):
 
 class UpdateTicketSchema(BaseModel):
     ticket_id: Optional[str] = Field(None, description="Ticket ID")
+    title: Optional[str] = Field(None, description="Description for Ticket ID")
     issue_type: Optional[str] = Field(None, description="Type of issue")
     status: Optional[str] = Field(None, description="Status of the ticket")
     assignee: Optional[str] = Field(None, description="Assignee of the ticket")
@@ -37,6 +39,7 @@ class UpdateTicketSchema(BaseModel):
 
 class PatchTicketSchema(BaseModel):
     ticket_id: Optional[str] = Field(None, description="Ticket ID")
+    title: Optional[str] = Field(None, description="Description for Ticket ID")
     issue_type: Optional[str] = Field(None, description="Type of issue")
     status: Optional[str] = Field(None, description="Status of the ticket")
     assignee: Optional[str] = Field(None, description="Assignee of the ticket")
